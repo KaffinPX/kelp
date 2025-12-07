@@ -10,15 +10,16 @@ use neptune_cash::{
     state::wallet::wallet_entropy::WalletEntropy,
 };
 use neptune_rpc_client::http::HttpClient;
+use tracing::info;
 
 use crate::wallet::cache::{keys::Keys, utxos::Utxos};
 
 #[derive(Clone)]
 pub struct Wallet {
     client: HttpClient,
-    height: Arc<RwLock<BlockHeight>>,
-    keys: Arc<RwLock<Keys>>,
-    utxos: Arc<RwLock<Utxos>>,
+    pub height: Arc<RwLock<BlockHeight>>,
+    pub keys: Arc<RwLock<Keys>>,
+    pub utxos: Arc<RwLock<Utxos>>,
 }
 
 impl Wallet {
@@ -78,7 +79,7 @@ impl Wallet {
                     .iter()
                     .position(|r| r.0 == commitment)
                     .unwrap(); // This might panic bcs of a malicious announcement.
-                println!(
+                info!(
                     "Found {} on block {current_height} on index {}",
                     commitment.to_hex(),
                     index
