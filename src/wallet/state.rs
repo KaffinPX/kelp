@@ -1,4 +1,7 @@
-use std::{sync::{Arc, RwLock}, time::Duration};
+use std::{
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
 use neptune_cash::{
     api::export::{Announcement, BlockHeight, Tip5},
@@ -8,13 +11,14 @@ use neptune_cash::{
 };
 use neptune_rpc_client::http::HttpClient;
 
-use crate::wallet::cache::keys::Keys;
+use crate::wallet::cache::{keys::Keys, utxos::Utxos};
 
 #[derive(Clone)]
 pub struct Wallet {
     client: HttpClient,
     height: Arc<RwLock<BlockHeight>>,
     keys: Arc<RwLock<Keys>>,
+    utxos: Arc<RwLock<Utxos>>,
 }
 
 impl Wallet {
@@ -27,6 +31,7 @@ impl Wallet {
             // Ideally we should have a default in-memory storage and a Trait and a backend in a seperate crate prob AND read height and UTXOs always from db
             height: Arc::new(RwLock::new(BlockHeight::new(17500.into()))),
             keys: Arc::new(RwLock::new(Keys::new(entropy))),
+            utxos: Arc::new(RwLock::new(Utxos::new())),
         }
     }
 
@@ -43,9 +48,11 @@ impl Wallet {
         let remote_height = self.client.height().await.unwrap().height;
         let remote_height: BlockHeight = remote_height.into(); // TODO: Can be removed after "mining" PR
 
-        let mut current_height = *self.height.write().unwrap();
+        let mut height_guard = self.height.write().unwrap();
 
-        while current_height <= remote_height {
+        while *height_guard <= remote_height {
+            let current_height = *height_guard;
+
             let transaction_kernel = self
                 .client
                 .get_block_transaction_kernel(BlockSelector::Height(current_height))
@@ -85,40 +92,17 @@ impl Wallet {
                     .body
                     .unwrap();
 
-                let expected_aocl_index =
-                    block_body.mutator_set_accumulator.aocl.leaf_count - index as u64 + 1 as u64;
-                let digest = self
-                    .client
-                    .get_utxo_digest(expected_aocl_index)
-                    .await
+                mock_proof.aocl_leaf_index =
+                    block_body.mutator_set_accumulator.aocl.leaf_count - index as u64 + 1;
+                let absolute_index_set = mock_proof.compute_indices(Tip5::hash(&utxo));
+
+                self.utxos
+                    .write()
                     .unwrap()
-                    .digest
-                    .unwrap();
-                println!("matches: {}", commitment == digest);
-
-                mock_proof.aocl_leaf_index = expected_aocl_index;
-                let item = Tip5::hash(&utxo);
-                let index_set = mock_proof.compute_indices(item);
-
-                let proof = self
-                    .client
-                    .restore_membership_proof(vec![index_set.into()])
-                    .await
-                    .unwrap()
-                    .snapshot;
-
-                let actual_proof = proof.membership_proofs[0]
-                    .clone()
-                    .extract_ms_membership_proof(
-                        expected_aocl_index,
-                        mock_proof.sender_randomness,
-                        mock_proof.receiver_preimage,
-                    )
-                    .unwrap();
-                println!("recovered the msmembership proof!!!")
+                    .record_utxo(utxo, absolute_index_set.into());
             }
 
-            current_height = current_height.next();
+            *height_guard = current_height.next();
         }
     }
 }
