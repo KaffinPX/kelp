@@ -47,8 +47,6 @@ impl Wallet {
 
     pub async fn scan_blocks(&self) {
         let remote_height = self.client.height().await.unwrap().height;
-        let remote_height: BlockHeight = remote_height.into(); // TODO: Can be removed after "mining" PR
-
         let mut height_guard = self.height.write().unwrap();
 
         while *height_guard <= remote_height {
