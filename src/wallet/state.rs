@@ -30,12 +30,12 @@ impl Wallet {
         let entropy = WalletEntropy::from_phrase(&words).unwrap();
 
         Wallet {
-            client,
+            client: client.clone(),
             // Ideally we should have a default in-memory storage and a Trait and a backend in a seperate crate prob AND read height and UTXOs always from db
             msa: Arc::new(MutatorSetAccumulator::default()),
-            height: Arc::new(RwLock::new(BlockHeight::new(17500.into()))),
+            height: Arc::new(RwLock::new(BlockHeight::new(7000.into()))),
             keys: Arc::new(RwLock::new(Keys::new(entropy))),
-            utxos: Arc::new(RwLock::new(Utxos::new())),
+            utxos: Arc::new(RwLock::new(Utxos::new(client))),
         }
     }
 
@@ -96,14 +96,14 @@ impl Wallet {
 
                 mock_proof.aocl_leaf_index =
                     block_body.mutator_set_accumulator.aocl.leaf_count - index as u64 + 1;
-                let absolute_index_set = mock_proof.compute_indices(Tip5::hash(&utxo));
 
-                self.utxos.write().unwrap().record_utxo(utxo, mock_proof);
+                self.utxos.write().unwrap().record(utxo, mock_proof);
             }
 
             *height_guard = current_height.next();
         }
 
-        //
+        // update proofs to latest and check if they are spent
+        // check if they are spent, if they are dont persist them
     }
 }
