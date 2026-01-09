@@ -6,6 +6,7 @@ use crate::wallet::state::Wallet;
 
 #[derive(Debug)]
 enum Command {
+    Height,
     Balance,
     Unknown(String),
 }
@@ -15,6 +16,7 @@ impl FromStr for Command {
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.trim().to_lowercase().as_str() {
+            "height" => Ok(Command::Height),
             "balance" => Ok(Command::Balance),
             cmd => Ok(Command::Unknown(cmd.to_string())),
         }
@@ -34,8 +36,11 @@ pub async fn start_console(wallet: Wallet) {
                     }
 
                     match cmd.parse::<Command>() {
+                        Ok(Command::Height) => {
+                            info!("Height: {}.", wallet.height.read().unwrap());
+                        }
                         Ok(Command::Balance) => {
-                            info!("Balance: {} NPT.", wallet.utxos.read().unwrap().summary);
+                            info!("Balance: {} XNT.", wallet.utxos.read().unwrap().summary);
                         }
                         Ok(Command::Unknown(cmd)) => {
                             warn!("Unknown command: {}", cmd);
