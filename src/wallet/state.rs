@@ -33,7 +33,7 @@ impl Wallet {
             client: client.clone(),
             // Ideally we should have a default in-memory storage and a Trait and a backend in a seperate crate prob AND read height and UTXOs always from db
             msa: Arc::new(MutatorSetAccumulator::default()),
-            height: Arc::new(RwLock::new(BlockHeight::new(7000.into()))),
+            height: Arc::new(RwLock::new(BlockHeight::new(12700.into()))),
             keys: Arc::new(RwLock::new(Keys::new(entropy))),
             utxos: Arc::new(RwLock::new(Utxos::new(client))),
         }
@@ -103,6 +103,7 @@ impl Wallet {
             *height_guard = current_height.next();
         }
 
+        self.utxos.write().unwrap().sync_proofs().await;
         // update proofs to latest and check if they are spent
         // check if they are spent, if they are dont persist them
     }

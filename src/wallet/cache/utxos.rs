@@ -5,6 +5,7 @@ use neptune_privacy::{
         ms_membership_proof::MsMembershipProof, mutator_set_accumulator::MutatorSetAccumulator,
     },
 };
+use num_traits::ops::checked::CheckedSub;
 use tracing::info;
 use xnt_rpc_client::http::HttpClient;
 
@@ -81,10 +82,12 @@ impl Utxos {
             let is_spendable = msa.verify(Tip5::hash(&utxo.utxo), &utxo.membership_proof);
 
             if !is_spendable {
+                let amount = utxo.utxo.get_native_currency_amount();
+                self.summary = self.summary.checked_sub(&amount).unwrap();
+
                 info!(
-                    "UTXO on leaf index {} is spent({} XNT).",
-                    utxo.membership_proof.aocl_leaf_index,
-                    utxo.utxo.get_native_currency_amount()
+                    "UTXO on leaf index {} is spent ({} XNT).",
+                    utxo.membership_proof.aocl_leaf_index, amount
                 );
             }
 
