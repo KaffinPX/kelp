@@ -1353,12 +1353,12 @@ name = "kelp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "neptune-cash",
- "neptune-rpc-client",
+ "neptune-privacy",
  "rustyline",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "xnt-rpc-client",
 ]
 
 [[package]]
@@ -1561,9 +1561,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "neptune-cash"
-version = "0.5.0"
-source = "git+https://github.com/Neptune-Crypto/neptune-core.git?rev=0af13688a7e2cfe0f19dfb92e97be53ed1b8f3fc#0af13688a7e2cfe0f19dfb92e97be53ed1b8f3fc"
+name = "neptune-privacy"
+version = "0.1.0"
+source = "git+https://github.com/neptuneprivacy/xnt-core.git?rev=3d1fa3eada8a8081f69174286a9185b8b2950770#3d1fa3eada8a8081f69174286a9185b8b2950770"
 dependencies = [
  "aead",
  "aes-gcm",
@@ -1572,6 +1572,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "axum",
+ "base64",
  "bech32",
  "bincode",
  "bytes",
@@ -1587,7 +1588,6 @@ dependencies = [
  "itertools 0.11.0",
  "leveldb-sys",
  "memmap2",
- "neptune-rpc-macros",
  "num-bigint",
  "num-rational",
  "num-traits",
@@ -1619,28 +1619,8 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-test",
+ "xnt-rpc-macros",
  "zeroize",
-]
-
-[[package]]
-name = "neptune-rpc-client"
-version = "0.5.0"
-source = "git+https://github.com/Neptune-Crypto/neptune-core.git?rev=0af13688a7e2cfe0f19dfb92e97be53ed1b8f3fc#0af13688a7e2cfe0f19dfb92e97be53ed1b8f3fc"
-dependencies = [
- "async-trait",
- "neptune-cash",
- "reqwest",
- "serde_json",
-]
-
-[[package]]
-name = "neptune-rpc-macros"
-version = "0.5.0"
-source = "git+https://github.com/Neptune-Crypto/neptune-core.git?rev=0af13688a7e2cfe0f19dfb92e97be53ed1b8f3fc#0af13688a7e2cfe0f19dfb92e97be53ed1b8f3fc"
-dependencies = [
- "convert_case",
- "quote",
- "syn 2.0.111",
 ]
 
 [[package]]
@@ -3940,6 +3920,27 @@ name = "writeable"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9edde0db4769d2dc68579893f2306b26c6ecfbe0ef499b013d731b7b9247e0b9"
+
+[[package]]
+name = "xnt-rpc-client"
+version = "0.1.0"
+source = "git+https://github.com/neptuneprivacy/xnt-core.git?rev=3d1fa3eada8a8081f69174286a9185b8b2950770#3d1fa3eada8a8081f69174286a9185b8b2950770"
+dependencies = [
+ "async-trait",
+ "neptune-privacy",
+ "reqwest",
+ "serde_json",
+]
+
+[[package]]
+name = "xnt-rpc-macros"
+version = "0.1.0"
+source = "git+https://github.com/neptuneprivacy/xnt-core.git?rev=3d1fa3eada8a8081f69174286a9185b8b2950770#3d1fa3eada8a8081f69174286a9185b8b2950770"
+dependencies = [
+ "convert_case",
+ "quote",
+ "syn 2.0.111",
+]
 
 [[package]]
 name = "yoke"

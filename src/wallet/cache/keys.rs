@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use neptune_cash::{
+use neptune_privacy::{
     api::export::{Announcement, KeyType, SpendingKey, Utxo},
     application::json_rpc::core::model::block::transaction_kernel::RpcChunkDictionary,
     prelude::twenty_first::prelude::MmrMembershipProof,

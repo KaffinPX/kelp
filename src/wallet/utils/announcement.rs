@@ -1,4 +1,4 @@
-use neptune_cash::{api::export::Announcement, prelude::triton_vm::prelude::BFieldElement};
+use neptune_privacy::{api::export::Announcement, prelude::triton_vm::prelude::BFieldElement};
 
 /// try extracting receiver identifier field from a [Announcement]
 pub fn extract_receiver_identifier(announcement: &Announcement) -> Option<BFieldElement> {

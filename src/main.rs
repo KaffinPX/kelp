@@ -1,13 +1,13 @@
 use std::panic;
 
 use anyhow::Result;
-use neptune_rpc_client::http::HttpClient;
 use tracing_subscriber::EnvFilter;
+use xnt_rpc_client::http::HttpClient;
 
 use crate::wallet::state::Wallet;
 
-pub mod wallet;
 pub mod core;
+pub mod wallet;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
         std::process::exit(1);
     }));
 
-    let client = HttpClient::new("http://127.0.0.1:9797");
+    let client = HttpClient::new("http://45.149.206.49:8080");
     let mnemonic = "belt expose monkey vapor tiny noble crater guilt have submit before fat rude tide shoulder practice hybrid record".to_string();
     let wallet = Wallet::new(client, mnemonic);
 

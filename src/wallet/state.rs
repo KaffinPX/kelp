@@ -3,20 +3,22 @@ use std::{
     time::Duration,
 };
 
-use neptune_cash::{
+use neptune_privacy::{
     api::export::{Announcement, BlockHeight, Tip5},
     application::json_rpc::core::api::rpc::RpcApi,
     protocol::consensus::block::block_selector::BlockSelector,
     state::wallet::wallet_entropy::WalletEntropy,
+    util_types::mutator_set::mutator_set_accumulator::MutatorSetAccumulator,
 };
-use neptune_rpc_client::http::HttpClient;
 use tracing::info;
+use xnt_rpc_client::http::HttpClient;
 
 use crate::wallet::cache::{keys::Keys, utxos::Utxos};
 
 #[derive(Clone)]
 pub struct Wallet {
     client: HttpClient,
+    pub msa: Arc<MutatorSetAccumulator>,
     pub height: Arc<RwLock<BlockHeight>>,
     pub keys: Arc<RwLock<Keys>>,
     pub utxos: Arc<RwLock<Utxos>>,
@@ -30,6 +32,7 @@ impl Wallet {
         Wallet {
             client,
             // Ideally we should have a default in-memory storage and a Trait and a backend in a seperate crate prob AND read height and UTXOs always from db
+            msa: Arc::new(MutatorSetAccumulator::default()),
             height: Arc::new(RwLock::new(BlockHeight::new(17500.into()))),
             keys: Arc::new(RwLock::new(Keys::new(entropy))),
             utxos: Arc::new(RwLock::new(Utxos::new())),
@@ -95,13 +98,12 @@ impl Wallet {
                     block_body.mutator_set_accumulator.aocl.leaf_count - index as u64 + 1;
                 let absolute_index_set = mock_proof.compute_indices(Tip5::hash(&utxo));
 
-                self.utxos
-                    .write()
-                    .unwrap()
-                    .record_utxo(utxo, absolute_index_set.into());
+                self.utxos.write().unwrap().record_utxo(utxo, mock_proof);
             }
 
             *height_guard = current_height.next();
         }
+
+        //
     }
 }
