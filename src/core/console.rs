@@ -31,7 +31,7 @@ pub async fn start_console(wallet: Wallet) {
         let mut rl = DefaultEditor::new().expect("failed to init rustyline");
 
         loop {
-            match rl.readline("kelp> ") {
+            match rl.readline("") {
                 Ok(line) => {
                     let cmd = line.trim();
                     if cmd.is_empty() {
