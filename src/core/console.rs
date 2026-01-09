@@ -1,3 +1,4 @@
+use neptune_privacy::api::export::{KeyType, Network};
 use rustyline::{DefaultEditor, error::ReadlineError};
 use std::str::FromStr;
 use tracing::{info, warn};
@@ -8,6 +9,7 @@ use crate::wallet::state::Wallet;
 enum Command {
     Height,
     Balance,
+    Address,
     Unknown(String),
 }
 
@@ -18,6 +20,7 @@ impl FromStr for Command {
         match input.trim().to_lowercase().as_str() {
             "height" => Ok(Command::Height),
             "balance" => Ok(Command::Balance),
+            "address" => Ok(Command::Address),
             cmd => Ok(Command::Unknown(cmd.to_string())),
         }
     }
@@ -41,6 +44,16 @@ pub async fn start_console(wallet: Wallet) {
                         }
                         Ok(Command::Balance) => {
                             info!("Balance: {} XNT.", wallet.utxos.read().unwrap().summary);
+                        }
+                        Ok(Command::Address) => {
+                            let keys = wallet.keys.read().unwrap();
+                            println!(
+                                "{}",
+                                keys.current_key(KeyType::Generation)
+                                    .to_address()
+                                    .to_bech32m(Network::Main)
+                                    .unwrap()
+                            );
                         }
                         Ok(Command::Unknown(cmd)) => {
                             warn!("Unknown command: {}", cmd);

@@ -29,6 +29,13 @@ impl Keys {
         keys
     }
 
+    pub fn current_key(&self, key_type: KeyType) -> &SpendingKey {
+        self.keys
+            .get(&key_type)
+            .and_then(|keys| keys.last())
+            .unwrap()
+    }
+
     pub fn derive_next_key(&mut self, key_type: KeyType) {
         let index = self.keys.get(&key_type).map_or(0, |v| v.len() as u64);
 
