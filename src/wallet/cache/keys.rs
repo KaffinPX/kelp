@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use neptune_privacy::{
     api::export::{Announcement, KeyType, SpendingKey, Utxo},
@@ -7,6 +7,7 @@ use neptune_privacy::{
     state::wallet::wallet_entropy::WalletEntropy,
     util_types::mutator_set::ms_membership_proof::MsMembershipProof,
 };
+use tokio::sync::RwLock;
 
 use crate::wallet::utils::announcement::{extract_ciphertext, extract_receiver_identifier};
 
@@ -86,3 +87,5 @@ impl Keys {
         utxos
     }
 }
+
+pub type KeysCache = Arc<RwLock<Keys>>;

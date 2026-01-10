@@ -40,13 +40,13 @@ pub async fn start_console(wallet: Wallet) {
 
                     match cmd.parse::<Command>() {
                         Ok(Command::Height) => {
-                            info!("Height: {}.", wallet.height.read().unwrap());
+                            info!("Height: {}.", wallet.scanner.height.blocking_read());
                         }
                         Ok(Command::Balance) => {
-                            info!("Balance: {} XNT.", wallet.utxos.read().unwrap().summary);
+                            info!("Balance: {} XNT.", wallet.utxos.blocking_read().summary);
                         }
                         Ok(Command::Address) => {
-                            let keys = wallet.keys.read().unwrap();
+                            let keys = wallet.keys.blocking_read();
                             println!(
                                 "{}",
                                 keys.current_key(KeyType::Generation)

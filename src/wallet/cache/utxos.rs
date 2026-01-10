@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use neptune_privacy::{
     api::export::{NativeCurrencyAmount, Tip5, Utxo},
     application::json_rpc::core::api::rpc::RpcApi,
@@ -6,6 +8,7 @@ use neptune_privacy::{
     },
 };
 use num_traits::ops::checked::CheckedSub;
+use tokio::sync::RwLock;
 use tracing::info;
 use xnt_rpc_client::http::HttpClient;
 
@@ -95,3 +98,5 @@ impl Utxos {
         });
     }
 }
+
+pub type UtxosCache = Arc<RwLock<Utxos>>;

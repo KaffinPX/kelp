@@ -1,27 +1,23 @@
-use std::{
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
-use neptune_privacy::{
-    api::export::{Announcement, BlockHeight, Tip5},
-    application::json_rpc::core::api::rpc::RpcApi,
-    protocol::consensus::block::block_selector::BlockSelector,
-    state::wallet::wallet_entropy::WalletEntropy,
-    util_types::mutator_set::mutator_set_accumulator::MutatorSetAccumulator,
-};
+use neptune_privacy::state::wallet::wallet_entropy::WalletEntropy;
+use tokio::sync::RwLock;
 use tracing::info;
 use xnt_rpc_client::http::HttpClient;
 
-use crate::wallet::cache::{keys::Keys, utxos::Utxos};
+use crate::wallet::{
+    cache::{
+        keys::{Keys, KeysCache},
+        utxos::{Utxos, UtxosCache},
+    },
+    scanner::Scanner,
+};
 
 #[derive(Clone)]
 pub struct Wallet {
-    client: HttpClient,
-    pub msa: Arc<MutatorSetAccumulator>,
-    pub height: Arc<RwLock<BlockHeight>>,
-    pub keys: Arc<RwLock<Keys>>,
-    pub utxos: Arc<RwLock<Utxos>>,
+    pub keys: KeysCache,
+    pub utxos: UtxosCache,
+    pub scanner: Arc<Scanner>,
 }
 
 impl Wallet {
@@ -29,13 +25,16 @@ impl Wallet {
         let words: Vec<String> = mnemonic.split(' ').map(|p| p.to_string()).collect();
         let entropy = WalletEntropy::from_phrase(&words).unwrap();
 
+        info!("Initializing keys cache...");
+        let keys = Arc::new(RwLock::new(Keys::new(entropy)));
+        info!("Initializing UTXOs cache...");
+        let utxos = Arc::new(RwLock::new(Utxos::new(client.clone())));
+
         Wallet {
-            client: client.clone(),
             // Ideally we should have a default in-memory storage and a Trait and a backend in a seperate crate prob AND read height and UTXOs always from db
-            msa: Arc::new(MutatorSetAccumulator::default()),
-            height: Arc::new(RwLock::new(BlockHeight::new(12700.into()))),
-            keys: Arc::new(RwLock::new(Keys::new(entropy))),
-            utxos: Arc::new(RwLock::new(Utxos::new(client))),
+            keys: keys.clone(),
+            utxos: utxos.clone(),
+            scanner: Arc::new(Scanner::new(client, keys, utxos)),
         }
     }
 
@@ -44,67 +43,7 @@ impl Wallet {
 
         loop {
             interval.tick().await;
-            self.scan_blocks().await;
+            self.scanner.scan().await;
         }
-    }
-
-    pub async fn scan_blocks(&self) {
-        let remote_height = self.client.height().await.unwrap().height;
-        let mut height_guard = self.height.write().unwrap();
-
-        while *height_guard <= remote_height {
-            let current_height = *height_guard;
-
-            let transaction_kernel = self
-                .client
-                .get_block_transaction_kernel(BlockSelector::Height(current_height))
-                .await
-                .unwrap()
-                .kernel
-                .unwrap();
-            let announcements: Vec<Announcement> = transaction_kernel
-                .announcements
-                .clone()
-                .into_iter()
-                .map(Into::into)
-                .collect();
-
-            let utxos = self.keys.read().unwrap().scan(announcements);
-
-            for (utxo, mut mock_proof) in utxos {
-                let commitment = mock_proof
-                    .addition_record(Tip5::hash(&utxo))
-                    .canonical_commitment;
-                let index = transaction_kernel
-                    .outputs
-                    .iter()
-                    .position(|r| r.0 == commitment)
-                    .unwrap(); // This might panic bcs of a malicious announcement.
-                info!(
-                    "Found {} on block {current_height} on index {}",
-                    commitment.to_hex(),
-                    index
-                );
-
-                let block_body = self
-                    .client
-                    .get_block_body(BlockSelector::Height(current_height))
-                    .await
-                    .unwrap()
-                    .body
-                    .unwrap();
-
-                mock_proof.aocl_leaf_index =
-                    block_body.mutator_set_accumulator.aocl.leaf_count - index as u64 + 1;
-
-                self.utxos.write().unwrap().record(utxo, mock_proof);
-            }
-
-            *height_guard = current_height.next();
-        }
-
-        self.utxos.write().unwrap().sync_proofs().await;
-        // update proofs to latest and check if they are spent
-        // check if they are spent, if they are dont persist them
     }
 }
