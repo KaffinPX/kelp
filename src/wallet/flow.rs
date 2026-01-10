@@ -2,7 +2,6 @@ use std::{sync::Arc, time::Duration};
 
 use neptune_privacy::state::wallet::wallet_entropy::WalletEntropy;
 use tokio::sync::RwLock;
-use tracing::info;
 use xnt_rpc_client::http::HttpClient;
 
 use crate::wallet::{
@@ -25,9 +24,7 @@ impl Wallet {
         let words: Vec<String> = mnemonic.split(' ').map(|p| p.to_string()).collect();
         let entropy = WalletEntropy::from_phrase(&words).unwrap();
 
-        info!("Initializing keys cache...");
         let keys = Arc::new(RwLock::new(Keys::new(entropy)));
-        info!("Initializing UTXOs cache...");
         let utxos = Arc::new(RwLock::new(Utxos::new(client.clone())));
 
         Wallet {

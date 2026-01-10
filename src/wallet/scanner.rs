@@ -23,7 +23,7 @@ impl Scanner {
     pub fn new(client: HttpClient, keys: KeysCache, utxos: UtxosCache) -> Self {
         Scanner {
             client: client.clone(),
-            height: Arc::new(RwLock::new(BlockHeight::new(12700.into()))),
+            height: Arc::new(RwLock::new(BlockHeight::new(12740.into()))),
             keys,
             utxos,
         }
@@ -76,7 +76,7 @@ impl Scanner {
                     .unwrap();
 
                 mock_proof.aocl_leaf_index =
-                    block_body.mutator_set_accumulator.aocl.leaf_count - index as u64 + 1;
+                    block_body.mutator_set_accumulator.aocl.leaf_count - index as u64 + 2;
 
                 self.utxos.write().await.record(utxo, mock_proof);
             }

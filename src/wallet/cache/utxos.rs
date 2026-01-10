@@ -36,6 +36,8 @@ pub struct Utxos {
 
 impl Utxos {
     pub fn new(client: HttpClient) -> Self {
+        info!("Initializing UTXOs cache...");
+
         Utxos {
             client,
             summary: NativeCurrencyAmount::from_nau(0),
@@ -43,14 +45,16 @@ impl Utxos {
         }
     }
 
+    // TBD: handle duplicates (scanner WILL return duplicate entries)
     pub fn record(&mut self, utxo: Utxo, membership_proof: MsMembershipProof) {
         self.summary = self.summary + utxo.get_native_currency_amount();
         self.utxos.push(LockedUtxo::new(utxo, membership_proof));
     }
 
     pub async fn sync_proofs(&mut self) {
-        let mut index_sets = Vec::with_capacity(self.utxos.len());
+        info!("Syncing membership proofs of {} UTXOs...", self.utxos.len());
 
+        let mut index_sets = Vec::with_capacity(self.utxos.len());
         for utxo in &self.utxos {
             let item = Tip5::hash(&utxo.utxo);
             index_sets.push(utxo.membership_proof.compute_indices(item));
@@ -77,14 +81,15 @@ impl Utxos {
                 .unwrap();
         }
 
+        info!("Synced membership proofs of {} UTXOs successfully.", self.utxos.len());
         self.prune(membership_snapshot.synced_mutator_set.into());
     }
 
     fn prune(&mut self, msa: MutatorSetAccumulator) {
         self.utxos.retain(|utxo| {
-            let is_spendable = msa.verify(Tip5::hash(&utxo.utxo), &utxo.membership_proof);
+            let is_available = msa.verify(Tip5::hash(&utxo.utxo), &utxo.membership_proof);
 
-            if !is_spendable {
+            if !is_available {
                 let amount = utxo.utxo.get_native_currency_amount();
                 self.summary = self.summary.checked_sub(&amount).unwrap();
 
@@ -94,7 +99,7 @@ impl Utxos {
                 );
             }
 
-            is_spendable
+            is_available
         });
     }
 }

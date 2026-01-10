@@ -8,6 +8,7 @@ use neptune_privacy::{
     util_types::mutator_set::ms_membership_proof::MsMembershipProof,
 };
 use tokio::sync::RwLock;
+use tracing::info;
 
 use crate::wallet::utils::announcement::{extract_ciphertext, extract_receiver_identifier};
 
@@ -19,6 +20,8 @@ pub struct Keys {
 
 impl Keys {
     pub fn new(entropy: WalletEntropy) -> Self {
+        info!("Initializing keys cache...");
+
         let mut keys = Keys {
             entropy,
             keys: HashMap::new(),
