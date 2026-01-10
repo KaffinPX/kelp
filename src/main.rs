@@ -4,7 +4,7 @@ use anyhow::Result;
 use tracing_subscriber::EnvFilter;
 use xnt_rpc_client::http::HttpClient;
 
-use crate::wallet::state::Wallet;
+use crate::wallet::flow::Wallet;
 
 pub mod core;
 pub mod wallet;

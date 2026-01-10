@@ -3,7 +3,7 @@ use rustyline::{DefaultEditor, error::ReadlineError};
 use std::str::FromStr;
 use tracing::{info, warn};
 
-use crate::wallet::state::Wallet;
+use crate::wallet::flow::Wallet;
 
 #[derive(Debug)]
 enum Command {
