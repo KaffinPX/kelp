@@ -33,6 +33,8 @@ impl Scanner {
         let remote_height = self.client.height().await.unwrap().height;
         let mut height_guard = self.height.write().await;
 
+        let initial_height = *height_guard;
+
         while *height_guard <= remote_height {
             let current_height = *height_guard;
 
@@ -84,6 +86,8 @@ impl Scanner {
             *height_guard = current_height.next();
         }
 
-        self.utxos.write().await.sync_proofs().await;
+        if *height_guard > initial_height {
+            self.utxos.write().await.sync_proofs().await;
+        }
     }
 }

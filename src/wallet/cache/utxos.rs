@@ -81,7 +81,10 @@ impl Utxos {
                 .unwrap();
         }
 
-        info!("Synced membership proofs of {} UTXOs successfully.", self.utxos.len());
+        info!(
+            "Synced membership proofs of {} UTXOs successfully.",
+            self.utxos.len()
+        );
         self.prune(membership_snapshot.synced_mutator_set.into());
     }
 
