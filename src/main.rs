@@ -4,7 +4,7 @@ use anyhow::Result;
 use tracing_subscriber::EnvFilter;
 use xnt_rpc_client::http::HttpClient;
 
-use crate::wallet::flow::Wallet;
+use crate::{core::storage::Storage, wallet::flow::Wallet};
 
 pub mod core;
 pub mod wallet;
@@ -22,6 +22,7 @@ async fn main() -> Result<()> {
 
     let client = HttpClient::new("http://45.149.206.49:8080");
     let mnemonic = "belt expose monkey vapor tiny noble crater guilt have submit before fat rude tide shoulder practice hybrid record".to_string();
+    let storage = Storage::new("./wallet.dat");
     let wallet = Wallet::new(client, mnemonic);
 
     core::console::start_console(wallet.clone()).await;

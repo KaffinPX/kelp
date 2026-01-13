@@ -8,11 +8,12 @@ use neptune_privacy::{
     },
 };
 use num_traits::ops::checked::CheckedSub;
+use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::info;
 use xnt_rpc_client::http::HttpClient;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct LockedUtxo {
     pub utxo: Utxo,
     pub membership_proof: MsMembershipProof,
@@ -52,9 +53,8 @@ impl Utxos {
     }
 
     pub async fn sync_proofs(&mut self) {
-        info!("Syncing membership proofs of {} UTXOs...", self.utxos.len());
-
         let mut index_sets = Vec::with_capacity(self.utxos.len());
+
         for utxo in &self.utxos {
             let item = Tip5::hash(&utxo.utxo);
             index_sets.push(utxo.membership_proof.compute_indices(item));
