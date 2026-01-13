@@ -4,12 +4,15 @@ use neptune_privacy::state::wallet::wallet_entropy::WalletEntropy;
 use tokio::sync::RwLock;
 use xnt_rpc_client::http::HttpClient;
 
-use crate::wallet::{
-    cache::{
-        keys::{Keys, KeysCache},
-        utxos::{Utxos, UtxosCache},
+use crate::{
+    core::storage::Storage,
+    wallet::{
+        cache::{
+            keys::{Keys, KeysCache},
+            utxos::{Utxos, UtxosCache},
+        },
+        scanner::Scanner,
     },
-    scanner::Scanner,
 };
 
 #[derive(Clone)]
@@ -20,9 +23,31 @@ pub struct Wallet {
 }
 
 impl Wallet {
-    pub fn new(client: HttpClient, mnemonic: String) -> Self {
-        let words: Vec<String> = mnemonic.split(' ').map(|p| p.to_string()).collect();
-        let entropy = WalletEntropy::from_phrase(&words).unwrap();
+    pub fn new(client: HttpClient, mnemonic: Option<String>) -> Self {
+        let storage = Storage::new("./wallet");
+        let entropy = match mnemonic {
+            Some(m) => {
+                if storage.keys.get_mnemonic().is_some() {
+                    panic!("A wallet is imported already")
+                }
+
+                let words: Vec<String> = m.split(' ').map(|p| p.to_string()).collect();
+                let entropy = WalletEntropy::from_phrase(&words).expect("Invalid mnemonic");
+
+                storage.keys.set_mnemonic(&m);
+                entropy
+            }
+            None => {
+                let mnemonic = storage
+                    .keys
+                    .get_mnemonic()
+                    .expect("There is no wallet imported");
+                let words: Vec<String> = mnemonic.split(' ').map(|p| p.to_string()).collect();
+                let entropy = WalletEntropy::from_phrase(&words).expect("Corrupted wallet dir");
+
+                entropy
+            }
+        };
 
         let keys = Arc::new(RwLock::new(Keys::new(entropy)));
         let utxos = Arc::new(RwLock::new(Utxos::new(client.clone())));
