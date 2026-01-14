@@ -38,7 +38,7 @@ impl Keys {
             entropy,
             keys: HashMap::new(),
         };
-        keys.load_keys();
+        keys.load();
         keys
     }
 
@@ -100,7 +100,7 @@ impl Keys {
         utxos
     }
 
-    fn load_keys(&mut self) {
+    fn load(&mut self) {
         for key_type in [KeyType::Generation, KeyType::Symmetric] {
             let current_index = self.storage.get(key_type);
 
@@ -113,6 +113,8 @@ impl Keys {
                 self.keys.entry(key_type).or_insert_with(Vec::new).push(key);
             }
         }
+
+        info!("Loaded {} used keys.", self.all_keys().count());
     }
 }
 

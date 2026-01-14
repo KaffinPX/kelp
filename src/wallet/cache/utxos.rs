@@ -41,11 +41,13 @@ impl Utxos {
     pub fn new(client: HttpClient, storage: UtxosKeyspace) -> Self {
         info!("Initializing UTXOs cache...");
 
-        Utxos {
+        let mut utxos = Utxos {
             client,
             storage,
             summary: NativeCurrencyAmount::from_nau(0),
-        }
+        };
+        utxos.load();
+        utxos
     }
 
     pub fn record(&mut self, utxo: Utxo, membership_proof: MsMembershipProof) {
@@ -56,7 +58,7 @@ impl Utxos {
             .storage
             .put(utxo_key, LockedUtxo::new(utxo, membership_proof))
         {
-            self.summary = self.summary + utxo_amount;
+            self.summary += utxo_amount;
         }
     }
 
@@ -114,6 +116,17 @@ impl Utxos {
                 self.summary = self.summary.checked_sub(&amount).unwrap();
             }
         }
+    }
+
+    fn load(&mut self) {
+        let mut utxo_count = 0;
+
+        for (_, utxo) in self.storage.iter() {
+            self.summary += utxo.utxo.get_native_currency_amount();
+            utxo_count += 1;
+        }
+
+        info!("Loaded {} UTXOs containing {} XNT.", utxo_count, self.summary);
     }
 }
 
