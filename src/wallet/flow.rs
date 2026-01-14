@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 use xnt_rpc_client::http::HttpClient;
 
 use crate::{
-    core::storage::Storage,
+    core::storage::{KeysKeyspace, Storage},
     wallet::{
         cache::{
             keys::{Keys, KeysCache},
@@ -24,32 +24,10 @@ pub struct Wallet {
 
 impl Wallet {
     pub fn new(client: HttpClient, mnemonic: Option<String>) -> Self {
-        let storage = Storage::new("./wallet");
-        let entropy = match mnemonic {
-            Some(m) => {
-                if storage.keys.get_mnemonic().is_some() {
-                    panic!("A wallet is imported already")
-                }
+        let Storage { keys, .. } = Storage::new("./wallet");
+        Self::initialize_mnemonic(&keys, mnemonic);
 
-                let words: Vec<String> = m.split(' ').map(|p| p.to_string()).collect();
-                let entropy = WalletEntropy::from_phrase(&words).expect("Invalid mnemonic");
-
-                storage.keys.set_mnemonic(&m);
-                entropy
-            }
-            None => {
-                let mnemonic = storage
-                    .keys
-                    .get_mnemonic()
-                    .expect("There is no wallet imported");
-                let words: Vec<String> = mnemonic.split(' ').map(|p| p.to_string()).collect();
-                let entropy = WalletEntropy::from_phrase(&words).expect("Corrupted wallet dir");
-
-                entropy
-            }
-        };
-
-        let keys = Arc::new(RwLock::new(Keys::new(entropy)));
+        let keys = Arc::new(RwLock::new(Keys::new(keys)));
         let utxos = Arc::new(RwLock::new(Utxos::new(client.clone())));
 
         Wallet {
@@ -67,5 +45,19 @@ impl Wallet {
             interval.tick().await;
             self.scanner.scan().await;
         }
+    }
+
+    fn initialize_mnemonic(storage: &KeysKeyspace, mnemonic: Option<String>) {
+        let Some(m) = mnemonic else {
+            return;
+        };
+        if storage.get_mnemonic().is_some() {
+            panic!("wallet already initialized; cannot overwrite mnemonic");
+        }
+
+        let words: Vec<String> = m.split_whitespace().map(String::from).collect();
+        WalletEntropy::from_phrase(&words).expect("mnemonic validation failed");
+
+        storage.set_mnemonic(&m);
     }
 }

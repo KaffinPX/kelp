@@ -61,11 +61,12 @@ impl Keyspace<u64> {
         })
     }
 
-    pub fn get(&self, key: KeyType) -> Option<u64> {
+    pub fn get(&self, key: KeyType) -> u64 {
         self.handle
             .get([key as u8])
             .unwrap()
             .map(|bytes| u64::from_be_bytes(bytes.as_ref().try_into().unwrap()))
+            .unwrap_or(1)
     }
 
     pub fn increment(&self, key: KeyType) {

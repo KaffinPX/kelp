@@ -10,26 +10,35 @@ use neptune_privacy::{
 use tokio::sync::RwLock;
 use tracing::info;
 
-use crate::wallet::utils::announcement::{extract_ciphertext, extract_receiver_identifier};
+use crate::{
+    core::storage::KeysKeyspace,
+    wallet::utils::announcement::{extract_ciphertext, extract_receiver_identifier},
+};
 
 #[derive(Clone)]
 pub struct Keys {
+    storage: KeysKeyspace,
     entropy: WalletEntropy,
     keys: HashMap<KeyType, Vec<SpendingKey>>,
 }
 
 impl Keys {
-    pub fn new(entropy: WalletEntropy) -> Self {
+    pub fn new(storage: KeysKeyspace) -> Self {
         info!("Initializing keys cache...");
 
+        let mnemonic = storage
+            .get_mnemonic()
+            .expect("wallet not initialized: no mnemonic found in storage");
+        let words: Vec<String> = mnemonic.split_whitespace().map(String::from).collect();
+        let entropy = WalletEntropy::from_phrase(&words)
+            .expect("wallet storage corrupted: stored mnemonic is invalid");
+
         let mut keys = Keys {
+            storage,
             entropy,
             keys: HashMap::new(),
         };
-
-        keys.derive_next_key(KeyType::Generation);
-        keys.derive_next_key(KeyType::Symmetric);
-
+        keys.load_keys();
         keys
     }
 
@@ -52,6 +61,7 @@ impl Keys {
             .entry(key_type)
             .or_insert_with(Vec::new)
             .push(new_key);
+        self.storage.increment(key_type);
     }
 
     pub(crate) fn all_keys(&self) -> impl Iterator<Item = (KeyType, &SpendingKey)> {
@@ -88,6 +98,21 @@ impl Keys {
         }
 
         utxos
+    }
+
+    fn load_keys(&mut self) {
+        for key_type in [KeyType::Generation, KeyType::Symmetric] {
+            let current_index = self.storage.get(key_type);
+
+            for index in 0..current_index {
+                let key = match key_type {
+                    KeyType::Generation => self.entropy.nth_generation_spending_key(index).into(),
+                    KeyType::Symmetric => self.entropy.nth_symmetric_key(index).into(),
+                };
+
+                self.keys.entry(key_type).or_insert_with(Vec::new).push(key);
+            }
+        }
     }
 }
 
