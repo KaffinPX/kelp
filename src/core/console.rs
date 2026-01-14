@@ -40,7 +40,7 @@ pub async fn start_console(wallet: Wallet) {
 
                     match cmd.parse::<Command>() {
                         Ok(Command::Height) => {
-                            info!("Height: {}.", wallet.scanner.height.blocking_read());
+                            info!("Height: {}.", wallet.scanner.height());
                         }
                         Ok(Command::Balance) => {
                             info!("Balance: {} XNT.", wallet.utxos.blocking_read().summary);

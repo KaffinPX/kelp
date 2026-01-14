@@ -1,42 +1,51 @@
-use std::sync::Arc;
-
 use neptune_privacy::{
     api::export::{Announcement, BlockHeight, Tip5},
     application::json_rpc::core::api::rpc::RpcApi,
     protocol::consensus::block::block_selector::BlockSelector,
 };
-use tokio::sync::RwLock;
 use tracing::info;
 use xnt_rpc_client::http::HttpClient;
 
-use crate::wallet::cache::{keys::KeysCache, utxos::UtxosCache};
+use crate::{
+    core::storage::WalletKeyspace,
+    wallet::cache::{keys::KeysCache, utxos::UtxosCache},
+};
 
 #[derive(Clone)]
 pub struct Scanner {
     client: HttpClient,
-    pub height: Arc<RwLock<BlockHeight>>,
+    storage: WalletKeyspace,
     pub keys: KeysCache,
     pub utxos: UtxosCache,
 }
 
 impl Scanner {
-    pub fn new(client: HttpClient, keys: KeysCache, utxos: UtxosCache) -> Self {
+    pub fn new(
+        client: HttpClient,
+        storage: WalletKeyspace,
+        keys: KeysCache,
+        utxos: UtxosCache,
+    ) -> Self {
         Scanner {
             client: client.clone(),
-            height: Arc::new(RwLock::new(BlockHeight::new(12740.into()))),
+            storage,
             keys,
             utxos,
         }
     }
 
+    pub fn height(&self) -> BlockHeight {
+        self.storage.get_height()
+    }
+
+    // TODO: rewrite scanner with batching, reorg support etc.
     pub async fn scan(&self) {
         let remote_height = self.client.height().await.unwrap().height;
-        let mut height_guard = self.height.write().await;
+        let mut start_height = self.storage.get_height(); 
+        let initial_height = start_height;
 
-        let initial_height = *height_guard;
-
-        while *height_guard <= remote_height {
-            let current_height = *height_guard;
+        while start_height <= remote_height {
+            let current_height = start_height;
 
             let transaction_kernel = self
                 .client
@@ -83,11 +92,12 @@ impl Scanner {
                 self.utxos.write().await.record(utxo, mock_proof);
             }
 
-            *height_guard = current_height.next();
+            start_height = start_height.next();
         }
 
-        if *height_guard > initial_height {
+        if start_height > initial_height {
             self.utxos.write().await.sync_proofs().await;
+            self.storage.set_height(start_height);
         }
     }
 }

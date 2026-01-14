@@ -126,7 +126,10 @@ impl Utxos {
             utxo_count += 1;
         }
 
-        info!("Loaded {} UTXOs containing {} XNT.", utxo_count, self.summary);
+        info!(
+            "Loaded {} UTXOs containing {} XNT.",
+            utxo_count, self.summary
+        );
     }
 }
 

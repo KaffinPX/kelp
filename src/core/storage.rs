@@ -2,20 +2,23 @@ use std::marker::PhantomData;
 use std::path::Path;
 
 use fjall::{KeyspaceCreateOptions, Readable, SingleWriterTxDatabase, SingleWriterTxKeyspace};
-use neptune_privacy::api::export::{Digest, KeyType};
+use neptune_privacy::api::export::{BlockHeight, Digest, KeyType};
 use serde_json;
 
 use crate::wallet::cache::utxos::LockedUtxo;
 
 pub type KeysKeyspace = Keyspace<KeyType, u64>;
 pub type UtxosKeyspace = Keyspace<UtxoKey, LockedUtxo>;
+pub type WalletKeyspace = Keyspace<(), ()>;
 
 pub const KEYSPACE_KEYS: &str = "keys";
 pub const KEYSPACE_UTXOS: &str = "utxos";
+pub const KEYSPACE_WALLET: &str = "wallet";
 
 pub struct Storage {
     pub keys: KeysKeyspace,
     pub utxos: UtxosKeyspace,
+    pub wallet: WalletKeyspace,
 }
 
 impl Storage {
@@ -24,7 +27,8 @@ impl Storage {
 
         Storage {
             keys: Keyspace::new(db.clone(), KEYSPACE_KEYS),
-            utxos: Keyspace::new(db, KEYSPACE_UTXOS),
+            utxos: Keyspace::new(db.clone(), KEYSPACE_UTXOS),
+            wallet: Keyspace::new(db, KEYSPACE_WALLET),
         }
     }
 }
@@ -145,5 +149,21 @@ impl Keyspace<UtxoKey, LockedUtxo> {
                 serde_json::from_slice(&value).expect("invalid utxo json"),
             )
         })
+    }
+}
+
+impl Keyspace<(), ()> {
+    pub fn set_height(&self, height: BlockHeight) {
+        self.handle
+            .insert("height", height.value().to_be_bytes())
+            .unwrap();
+    }
+
+    pub fn get_height(&self) -> BlockHeight {
+        self.handle
+            .get("height")
+            .unwrap()
+            .map(|bytes| u64::from_be_bytes(bytes.to_vec().try_into().unwrap()).into())
+            .unwrap_or(BlockHeight::genesis())
     }
 }
