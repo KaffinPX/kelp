@@ -17,6 +17,9 @@ struct Args {
     /// Mnemonic to import
     #[arg(long)]
     mnemonic: Option<String>,
+    /// RPC URL to use (JSON/HTTP)
+    #[arg(long)]
+    rpc_url: String,
 }
 
 #[tokio::main]
@@ -31,7 +34,7 @@ async fn main() -> Result<()> {
         std::process::exit(1);
     }));
 
-    let client = HttpClient::new("http://45.149.206.49:8080");
+    let client = HttpClient::new(args.rpc_url);
     let wallet = Wallet::new(client, args.mnemonic);
 
     core::console::start_console(wallet.clone()).await;
