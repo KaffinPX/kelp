@@ -2,13 +2,13 @@ use std::marker::PhantomData;
 use std::path::Path;
 
 use fjall::{KeyspaceCreateOptions, Readable, SingleWriterTxDatabase, SingleWriterTxKeyspace};
-use neptune_privacy::api::export::KeyType;
+use neptune_privacy::api::export::{Digest, KeyType};
 use serde_json;
 
 use crate::wallet::cache::utxos::LockedUtxo;
 
-pub type KeysKeyspace = Keyspace<u64>;
-pub type UtxosKeyspace = Keyspace<LockedUtxo>;
+pub type KeysKeyspace = Keyspace<KeyType, u64>;
+pub type UtxosKeyspace = Keyspace<UtxoKey, LockedUtxo>;
 
 pub const KEYSPACE_KEYS: &str = "keys";
 pub const KEYSPACE_UTXOS: &str = "utxos";
@@ -30,37 +30,27 @@ impl Storage {
 }
 
 #[derive(Clone)]
-pub struct Keyspace<V> {
+pub struct Keyspace<K, V> {
     db: SingleWriterTxDatabase,
     pub handle: SingleWriterTxKeyspace,
+    pub key: PhantomData<K>,
     pub value: PhantomData<V>,
 }
 
-impl<V> Keyspace<V> {
+impl<K, V> Keyspace<K, V> {
     pub fn new(db: SingleWriterTxDatabase, name: &str) -> Self {
         let handle = db.keyspace(name, KeyspaceCreateOptions::default).unwrap();
 
         Self {
             db,
             handle,
+            key: PhantomData,
             value: PhantomData,
         }
     }
 }
 
-impl Keyspace<u64> {
-    pub fn set_mnemonic(&self, mnemonic: &str) {
-        self.handle
-            .insert("mnemonic", mnemonic.as_bytes().to_vec())
-            .unwrap();
-    }
-
-    pub fn get_mnemonic(&self) -> Option<String> {
-        self.handle.get("mnemonic").unwrap().map(|bytes| {
-            String::from_utf8(bytes.to_vec()).expect("stored mnemonic is not valid UTF-8")
-        })
-    }
-
+impl Keyspace<KeyType, u64> {
     pub fn get(&self, key: KeyType) -> u64 {
         self.handle
             .get([key as u8])
@@ -80,33 +70,80 @@ impl Keyspace<u64> {
             })
             .unwrap();
     }
+
+    pub fn set_mnemonic(&self, mnemonic: &str) {
+        self.handle
+            .insert("mnemonic", mnemonic.as_bytes().to_vec())
+            .unwrap();
+    }
+
+    pub fn get_mnemonic(&self) -> Option<String> {
+        self.handle.get("mnemonic").unwrap().map(|bytes| {
+            String::from_utf8(bytes.to_vec()).expect("stored mnemonic is not valid UTF-8")
+        })
+    }
 }
 
-impl Keyspace<LockedUtxo> {
-    pub fn get<K: AsRef<[u8]>>(&self, key: K) -> Option<LockedUtxo> {
+#[derive(Clone)]
+pub struct UtxoKey(Vec<u8>);
+
+impl UtxoKey {
+    pub fn new(leaf_index: u64, digest: Digest) -> Self {
+        let mut key = Vec::new();
+
+        key.extend_from_slice(&leaf_index.to_be_bytes());
+        key.extend_from_slice(digest.to_hex().as_bytes());
+
+        Self(key)
+    }
+
+    pub fn extract_digest(&self) -> Digest {
+        let digest_hex_bytes = &self.0[8..];
+        let digest_hex = String::from_utf8(digest_hex_bytes.to_vec()).unwrap();
+
+        Digest::try_from_hex(&digest_hex).unwrap()
+    }
+}
+
+impl AsRef<[u8]> for UtxoKey {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl Keyspace<UtxoKey, LockedUtxo> {
+    pub fn get(&self, key: UtxoKey) -> Option<LockedUtxo> {
         self.handle
             .get(key)
             .unwrap()
             .map(|bytes| serde_json::from_slice(&bytes).expect("invalid utxo json"))
     }
 
-    pub fn remove<K: AsRef<[u8]>>(&self, key: K) {
+    pub fn put(&self, key: UtxoKey, utxo: LockedUtxo) -> bool {
+        self.handle
+            .fetch_update(key.as_ref(), |_| {
+                Some(
+                    serde_json::to_vec(&utxo)
+                        .expect("utxo serialization failed")
+                        .into(),
+                )
+            })
+            .unwrap()
+            .is_none()
+    }
+
+    pub fn remove(&self, key: UtxoKey) {
         self.handle.remove(key.as_ref()).unwrap();
     }
 
-    pub fn set<K: AsRef<[u8]>>(&self, key: K, utxo: LockedUtxo) {
-        self.handle
-            .insert(
-                key.as_ref(),
-                serde_json::to_vec(&utxo).expect("utxo serialization failed"),
-            )
-            .unwrap();
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = LockedUtxo> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (UtxoKey, LockedUtxo)> + '_ {
         let tx = self.db.read_tx();
         tx.iter(&self.handle).map(|guard| {
-            serde_json::from_slice(&guard.value().unwrap()).expect("invalid utxo json")
+            let (key, value) = guard.into_inner().unwrap();
+            (
+                UtxoKey(key.to_vec()),
+                serde_json::from_slice(&value).expect("invalid utxo json"),
+            )
         })
     }
 }

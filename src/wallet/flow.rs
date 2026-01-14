@@ -24,11 +24,11 @@ pub struct Wallet {
 
 impl Wallet {
     pub fn new(client: HttpClient, mnemonic: Option<String>) -> Self {
-        let Storage { keys, .. } = Storage::new("./wallet");
+        let Storage { keys, utxos } = Storage::new("./wallet");
         Self::initialize_mnemonic(&keys, mnemonic);
 
         let keys = Arc::new(RwLock::new(Keys::new(keys)));
-        let utxos = Arc::new(RwLock::new(Utxos::new(client.clone())));
+        let utxos = Arc::new(RwLock::new(Utxos::new(client.clone(), utxos)));
 
         Wallet {
             // Ideally we should have a default in-memory storage and a Trait and a backend in a seperate crate prob AND read height and UTXOs always from db
