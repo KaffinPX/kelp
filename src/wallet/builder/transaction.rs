@@ -27,7 +27,6 @@ use neptune_privacy::{
     state::wallet::{transaction_output::TxOutput, unlocked_utxo::UnlockedUtxo},
 };
 
-use num_traits::CheckedSub;
 use tracing::info;
 use xnt_rpc_client::http::HttpClient;
 
@@ -77,7 +76,7 @@ impl TransactionBuilder {
         // Prepare output UTXOs (including the change output).
         let outputs = vec![
             TxOutput::onchain_native_currency(
-                amount.checked_sub(&fee).unwrap(),
+                amount,
                 Digest::default(), // TODO: Proper generation (as this might leak privacy).
                 recipient,
                 false,
@@ -135,7 +134,7 @@ impl TransactionBuilder {
         let salted_inputs_hash = Tip5::hash(&primitive_witness.input_utxos);
         let salted_outputs_hash = Tip5::hash(&primitive_witness.output_utxos);
 
-        info!("Starting proving of {}...", txk_mast_hash);
+        info!("Starting proving of {}...", txk_mast_hash.to_hex());
         info!("Proving RemovalRecordsIntegrity (1/6)...");
         let removal_records_integrity = {
             let proof = triton_vm::prove(

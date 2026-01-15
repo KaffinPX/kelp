@@ -87,7 +87,7 @@ impl Scanner {
                     .unwrap();
 
                 mock_proof.aocl_leaf_index =
-                    block_body.mutator_set_accumulator.aocl.leaf_count - index as u64 + 2;
+                    block_body.mutator_set_accumulator.aocl.leaf_count - index as u64 - 4;
 
                 self.utxos.write().await.record(utxo, mock_proof);
             }
