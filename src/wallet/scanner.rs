@@ -41,7 +41,7 @@ impl Scanner {
     // TODO: rewrite scanner with batching, reorg support etc.
     pub async fn scan(&self) {
         let remote_height = self.client.height().await.unwrap().height;
-        let mut start_height = self.storage.get_height(); 
+        let mut start_height = self.storage.get_height();
         let initial_height = start_height;
 
         while start_height <= remote_height {

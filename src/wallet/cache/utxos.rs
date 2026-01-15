@@ -7,7 +7,7 @@ use neptune_privacy::{
         ms_membership_proof::MsMembershipProof, mutator_set_accumulator::MutatorSetAccumulator,
     },
 };
-use num_traits::ops::checked::CheckedSub;
+use num_traits::{Zero, ops::checked::CheckedSub};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::info;
@@ -35,6 +35,8 @@ pub struct Utxos {
     client: HttpClient,
     storage: UtxosKeyspace,
     pub summary: NativeCurrencyAmount,
+    // TODO: guarantee UTXOs are always synced to this
+    pub msa: MutatorSetAccumulator,
 }
 
 impl Utxos {
@@ -45,9 +47,36 @@ impl Utxos {
             client,
             storage,
             summary: NativeCurrencyAmount::from_nau(0),
+            msa: MutatorSetAccumulator::default(),
         };
         utxos.load();
         utxos
+    }
+
+    // Select UTXOs to cover `amount`.
+    // Returns (selected_utxos, excess)
+    pub fn select_utxos(
+        &self,
+        amount: NativeCurrencyAmount,
+    ) -> (Vec<LockedUtxo>, NativeCurrencyAmount) {
+        let mut selected_utxos = Vec::new();
+        let mut total_amount = NativeCurrencyAmount::zero();
+
+        for (_, utxo) in self.storage.iter() {
+            if total_amount >= amount {
+                break;
+            }
+
+            let utxo_amount = utxo.utxo.get_native_currency_amount();
+            total_amount += utxo_amount;
+            selected_utxos.push(utxo.clone());
+        }
+
+        let excess_amount = total_amount
+            .checked_sub(&amount)
+            .expect("insufficient funds");
+
+        (selected_utxos, excess_amount)
     }
 
     pub fn record(&mut self, utxo: Utxo, membership_proof: MsMembershipProof) {
@@ -116,6 +145,8 @@ impl Utxos {
                 self.summary = self.summary.checked_sub(&amount).unwrap();
             }
         }
+
+        self.msa = msa;
     }
 
     fn load(&mut self) {

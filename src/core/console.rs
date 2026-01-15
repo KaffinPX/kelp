@@ -1,4 +1,4 @@
-use neptune_privacy::api::export::{KeyType, Network};
+use neptune_privacy::api::export::{KeyType, NativeCurrencyAmount, Network, ReceivingAddress};
 use rustyline::{DefaultEditor, error::ReadlineError};
 use std::str::FromStr;
 use tracing::{info, warn};
@@ -10,6 +10,7 @@ enum Command {
     Height,
     Balance,
     Address,
+    Send,
     Unknown(String),
 }
 
@@ -21,6 +22,7 @@ impl FromStr for Command {
             "height" => Ok(Command::Height),
             "balance" => Ok(Command::Balance),
             "address" => Ok(Command::Address),
+            "send" => Ok(Command::Send),
             cmd => Ok(Command::Unknown(cmd.to_string())),
         }
     }
@@ -33,10 +35,11 @@ pub async fn start_console(wallet: Wallet) {
         loop {
             match rl.readline("") {
                 Ok(line) => {
-                    let cmd = line.trim();
-                    if cmd.is_empty() {
-                        continue;
-                    }
+                    let mut parts_iter = line.trim().split_whitespace();
+                    let cmd = match parts_iter.next() {
+                        Some(s) if !s.is_empty() => s.to_lowercase(),
+                        _ => continue,
+                    };
 
                     match cmd.parse::<Command>() {
                         Ok(Command::Height) => {
@@ -54,6 +57,60 @@ pub async fn start_console(wallet: Wallet) {
                                     .to_bech32m(Network::Main)
                                     .unwrap()
                             );
+                        }
+                        Ok(Command::Send) => {
+                            let address_str = match parts_iter.next() {
+                                Some(s) => s,
+                                None => {
+                                    warn!("Missing address.");
+                                    continue;
+                                }
+                            };
+                            let address =
+                                match ReceivingAddress::from_bech32m(address_str, Network::Main) {
+                                    Ok(addr) => addr,
+                                    Err(e) => {
+                                        warn!("Invalid address: {}.", e);
+                                        continue;
+                                    }
+                                };
+                            let amount_str = match parts_iter.next() {
+                                Some(s) => s,
+                                None => {
+                                    warn!("Missing amount.");
+                                    continue;
+                                }
+                            };
+                            let amount = match NativeCurrencyAmount::coins_from_str(amount_str) {
+                                Ok(a) => a,
+                                Err(_) => {
+                                    warn!("Invalid amount: {}.", amount_str);
+                                    continue;
+                                }
+                            };
+                            let fee_str = match parts_iter.next() {
+                                Some(s) => s,
+                                None => {
+                                    warn!("Missing fee.");
+                                    continue;
+                                }
+                            };
+                            let fee = match NativeCurrencyAmount::coins_from_str(fee_str) {
+                                Ok(f) => f,
+                                Err(_) => {
+                                    warn!("Invalid fee: {}.", fee_str);
+                                    continue;
+                                }
+                            };
+                            if parts_iter.next().is_some() {
+                                warn!("Extra arguments for send command");
+                                continue;
+                            }
+
+                            let wallet = wallet.clone();
+                            tokio::runtime::Handle::current().spawn(async move {
+                                wallet.transaction_builder.send(address, amount, fee).await;
+                            });
                         }
                         Ok(Command::Unknown(cmd)) => {
                             warn!("Unknown command: {}", cmd);

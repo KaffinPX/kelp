@@ -100,6 +100,11 @@ impl Keys {
         utxos
     }
 
+    pub fn find_spending_key_for_utxo(&self, utxo: &Utxo) -> Option<&SpendingKey> {
+        self.all_keys()
+            .find_map(|(_, k)| (k.lock_script_hash() == utxo.lock_script_hash()).then_some(k))
+    }
+
     fn load(&mut self) {
         for key_type in [KeyType::Generation, KeyType::Symmetric] {
             let current_index = self.storage.get(key_type);

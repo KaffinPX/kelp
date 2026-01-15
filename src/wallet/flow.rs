@@ -4,6 +4,7 @@ use neptune_privacy::state::wallet::wallet_entropy::WalletEntropy;
 use tokio::sync::RwLock;
 use xnt_rpc_client::http::HttpClient;
 
+use crate::wallet::builder::transaction::TransactionBuilder;
 use crate::{
     core::storage::{KeysKeyspace, Storage},
     wallet::{
@@ -20,6 +21,7 @@ pub struct Wallet {
     pub keys: KeysCache,
     pub utxos: UtxosCache,
     pub scanner: Arc<Scanner>,
+    pub transaction_builder: Arc<TransactionBuilder>,
 }
 
 impl Wallet {
@@ -33,17 +35,25 @@ impl Wallet {
 
         let keys = Arc::new(RwLock::new(Keys::new(keys)));
         let utxos = Arc::new(RwLock::new(Utxos::new(client.clone(), utxos)));
+        let scanner = Arc::new(Scanner::new(
+            client.clone(),
+            wallet,
+            keys.clone(),
+            utxos.clone(),
+        ));
+        let transaction_builder =
+            Arc::new(TransactionBuilder::new(client, keys.clone(), utxos.clone()));
 
         Wallet {
-            keys: keys.clone(),
-            utxos: utxos.clone(),
-            scanner: Arc::new(Scanner::new(client, wallet, keys, utxos)),
+            keys,
+            utxos,
+            scanner,
+            transaction_builder,
         }
     }
 
     pub async fn main_loop(&self) {
         let mut interval = tokio::time::interval(Duration::from_secs(10));
-
         loop {
             interval.tick().await;
             self.scanner.scan().await;

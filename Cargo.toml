@@ -6,8 +6,8 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.98"
 tokio = { version = "1.45.1", features = ["full", "tracing"] }
-neptune-privacy = { git = "https://github.com/neptuneprivacy/xnt-core.git", rev = "3d1fa3eada8a8081f69174286a9185b8b2950770" }
-xnt-rpc-client = { git = "https://github.com/neptuneprivacy/xnt-core.git", rev = "3d1fa3eada8a8081f69174286a9185b8b2950770" }
+neptune-privacy = { git = "https://github.com/KaffinPX/xnt-core.git", rev = "c3656dd2d1d29ceea41092b993aedefea2ccf84a" }
+xnt-rpc-client = { git = "https://github.com/KaffinPX/xnt-core.git", rev = "c3656dd2d1d29ceea41092b993aedefea2ccf84a" }
 rustyline = "17.0.2"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
@@ -16,4 +16,5 @@ fjall = "3.0.1"
 serde_json = "1.0.149"
 serde = "1.0.228"
 clap = "4.5.54"
+itertools = "0.14.0"
 
